@@ -52,7 +52,7 @@ def setup_inputs(sess, filenames, image_size=None, capacity_factor=3):
       
     return features, labels
 
-def setup_inputs_MRI(sess, filenames_input, filenames_output, image_size=None, capacity_factor=3):
+def setup_inputs_two_sources(sess, filenames_input, filenames_output, image_size=None, capacity_factor=3):
 
     if image_size is None:
         image_size = FLAGS.sample_size
