@@ -63,7 +63,8 @@ def train_model(train_data):
     td = train_data
 
     summaries = tf.merge_all_summaries()
-    td.sess.run(tf.initialize_all_variables())
+    td.sess.run(tf.initialize_all_variables()) # will deprecated 2017-03-02
+    # TODO: change to tf.global_variables_initializer()
 
     lrval       = FLAGS.learning_rate_start
     start_time  = time.time()
