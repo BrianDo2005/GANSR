@@ -66,7 +66,7 @@ tf.app.flags.DEFINE_integer('train_time', 20,
                             "Time in minutes to train the model")
 
 
-def mkdir_p(path):
+def mkdirp(path):
     try:
         os.makedirs(path)
     except OSError as exc:  # Python >2.5
@@ -75,7 +75,7 @@ def mkdir_p(path):
         else:
             raise
 
-def prepare_dirs(delete_train_dir=False):
+def prepare_dirs(delete_train_dir=False, shuffle_filename=True):
     # Create checkpoint dir (do not delete anything)
     if not tf.gfile.Exists(FLAGS.checkpoint_dir):
         tf.gfile.MakeDirs(FLAGS.checkpoint_dir)
@@ -87,8 +87,10 @@ def prepare_dirs(delete_train_dir=False):
                 tf.gfile.DeleteRecursively(FLAGS.train_dir)
             tf.gfile.MakeDirs(FLAGS.train_dir)
         except:
-            print('fail to delete train dir {0} using tf.gfile, will use shutil'.format(FLAGS.train_dir))
-            shutil.rmtree(FLAGS.train_dir)
+            try:
+                shutil.rmtree(FLAGS.train_dir)
+            except:
+                print('fail to delete train dir {0} using tf.gfile, will use shutil'.format(FLAGS.train_dir))
             mkdirp(FLAGS.train_dir)
 
 
@@ -99,7 +101,8 @@ def prepare_dirs(delete_train_dir=False):
 
     filenames = tf.gfile.ListDirectory(FLAGS.dataset)
     filenames = sorted(filenames)
-    random.shuffle(filenames)
+    if shuffle_filename:
+        random.shuffle(filenames)
     filenames = [os.path.join(FLAGS.dataset, f) for f in filenames]
 
     return filenames
@@ -160,7 +163,7 @@ def _train():
     sess, summary_writer = setup_tensorflow()
 
     # Prepare directories
-    all_filenames = prepare_dirs(delete_train_dir=True)
+    all_filenames = prepare_dirs(delete_train_dir=True, shuffle_filename=False)
 
     # Separate training and test sets
     train_filenames = all_filenames[:-FLAGS.test_vectors]
