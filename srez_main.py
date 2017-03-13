@@ -9,6 +9,7 @@ import numpy as np
 import numpy.random
 
 import tensorflow as tf
+import shutil, os, errno # utils handling file manipulation
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -64,6 +65,16 @@ tf.app.flags.DEFINE_string('train_dir', 'train',
 tf.app.flags.DEFINE_integer('train_time', 20,
                             "Time in minutes to train the model")
 
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
+
 def prepare_dirs(delete_train_dir=False):
     # Create checkpoint dir (do not delete anything)
     if not tf.gfile.Exists(FLAGS.checkpoint_dir):
@@ -71,9 +82,15 @@ def prepare_dirs(delete_train_dir=False):
     
     # Cleanup train dir
     if delete_train_dir:
-        if tf.gfile.Exists(FLAGS.train_dir):
-            tf.gfile.DeleteRecursively(FLAGS.train_dir)
-        tf.gfile.MakeDirs(FLAGS.train_dir)
+        try:
+            if tf.gfile.Exists(FLAGS.train_dir):
+                tf.gfile.DeleteRecursively(FLAGS.train_dir)
+            tf.gfile.MakeDirs(FLAGS.train_dir)
+        except:
+            print('fail to delete train dir {0} using tf.gfile, will use shutil'.format(FLAGS.train_dir))
+            shutil.rmtree(FLAGS.train_dir)
+            mkdirp(FLAGS.train_dir)
+
 
     # Return names of training files
     if not tf.gfile.Exists(FLAGS.dataset) or \
@@ -88,9 +105,10 @@ def prepare_dirs(delete_train_dir=False):
     return filenames
 
 
-def setup_tensorflow():
+def setup_tensorflow(gpu_memory_fraction=0.6):
     # Create session
     config = tf.ConfigProto(log_device_placement=FLAGS.log_device_placement)
+    config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_fraction
     sess = tf.Session(config=config)
 
     # Initialize rng with a deterministic seed
@@ -102,7 +120,7 @@ def setup_tensorflow():
 
     summary_writer = tf.train.SummaryWriter(FLAGS.train_dir, sess.graph)
 
-    return sess, summary_writer
+    return sess, summary_writer   
 
 def _demo():
     # Load checkpoint
