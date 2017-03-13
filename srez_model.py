@@ -482,9 +482,9 @@ def create_generator_loss(disc_output, gene_output, features):
 
     # fourier_transform
     gene_kspace = Fourier(downscaled)
-    features_kspace = Fourier(features)
-    loss_kspace = tf.cast(tf.abs(tf.square(gene_kspace - features_kspace)), tf.float32)
-
+    feature_kspace = Fourier(features)
+    # tf.Session().run(tf.cast(tf.abs(tf.square(tmp1 - tmp2)),tf.float32)*tf.cast(tf.greater(tf.abs(tmp2),0),tf.float32))
+    loss_kspace = tf.cast(tf.abs(tf.square(gene_kspace - feature_kspace)),tf.float32)*tf.cast(tf.greater(tf.abs(feature_kspace),0),tf.float32)
 
     gene_l1_loss  = tf.reduce_mean(loss_kspace, name='gene_fourier_loss')
 
