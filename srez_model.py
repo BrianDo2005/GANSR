@@ -357,11 +357,56 @@ def _discriminator_model(sess, features, disc_input):
 
     return model.get_output(), disc_vars
 
-def _generator_model(sess, features, labels, channels):
+# def _generator_model(sess, features, labels, channels):
+#     # Upside-down all-convolutional resnet
+
+#     mapsize = 3
+#     res_units  = [256, 128, 96]
+
+#     old_vars = tf.global_variables()#tf.all_variables() , all_variables() are deprecated
+
+#     # See Arxiv 1603.05027
+#     model = Model('GEN', features)
+
+#     for ru in range(len(res_units)-1):
+#         nunits  = res_units[ru]
+
+#         for j in range(2):
+#             model.add_residual_block(nunits, mapsize=mapsize)
+
+#         # Spatial upscale (see http://distill.pub/2016/deconv-checkerboard/)
+#         # and transposed convolution
+#         # model.add_upscale()
+        
+#         model.add_batch_norm()
+#         model.add_relu()
+#         model.add_conv2d_transpose(nunits, mapsize=mapsize, stride=1, stddev_factor=1.)
+
+#     # Finalization a la "all convolutional net"
+#     nunits = res_units[-1]
+#     model.add_conv2d(nunits, mapsize=mapsize, stride=1, stddev_factor=2.)
+#     # Worse: model.add_batch_norm()
+#     model.add_relu()
+
+#     model.add_conv2d(nunits, mapsize=1, stride=1, stddev_factor=2.)
+#     # Worse: model.add_batch_norm()
+#     model.add_relu()
+
+#     # Last layer is sigmoid with no batch normalization
+#     model.add_conv2d(channels, mapsize=1, stride=1, stddev_factor=1.)
+#     model.add_sigmoid()
+    
+#     new_vars  = tf.global_variables()#tf.all_variables() , all_variables() are deprecated
+#     gene_vars = list(set(new_vars) - set(old_vars))
+
+#     return model.get_output(), gene_vars
+
+def _generator_model_with_scale(sess, features, labels, channels):
     # Upside-down all-convolutional resnet
 
     mapsize = 3
     res_units  = [256, 128, 96]
+    scale_changes = [0,0,0,0,0,0]
 
     old_vars = tf.global_variables()#tf.all_variables() , all_variables() are deprecated
 
@@ -376,8 +421,9 @@ def _generator_model(sess, features, labels, channels):
 
         # Spatial upscale (see http://distill.pub/2016/deconv-checkerboard/)
         # and transposed convolution
-        model.add_upscale()
-        
+        if scale_changes[ru]>0:
+            model.add_upscale()
+
         model.add_batch_norm()
         model.add_relu()
         model.add_conv2d_transpose(nunits, mapsize=mapsize, stride=1, stddev_factor=1.)
@@ -412,11 +458,11 @@ def create_model(sess, features, labels):
     # TBD: Is there a better way to instance the generator?
     with tf.variable_scope('gene') as scope:
         gene_output, gene_var_list = \
-                    _generator_model(sess, features, labels, channels)
+                    _generator_model_with_scale(sess, features, labels, channels)
 
         scope.reuse_variables()
 
-        gene_moutput, _ = _generator_model(sess, gene_minput, labels, channels)
+        gene_moutput, _ = _generator_model_with_scale(sess, gene_minput, labels, channels)
     
     # Discriminator with real data
     disc_real_input = tf.identity(labels, name='disc_real_input')
@@ -476,12 +522,12 @@ def create_generator_loss(disc_output, gene_output, features):
     gene_ce_loss  = tf.reduce_mean(cross_entropy, name='gene_ce_loss')
 
     # I.e. does the result look like the feature?
-    K = int(gene_output.get_shape()[1])//int(features.get_shape()[1])
-    assert K == 2 or K == 4 or K == 8    
-    downscaled = _downscale(gene_output, K)
+    # K = int(gene_output.get_shape()[1])//int(features.get_shape()[1])
+    # assert K == 2 or K == 4 or K == 8    
+    # downscaled = _downscale(gene_output, K)
 
     # fourier_transform
-    gene_kspace = Fourier(downscaled)
+    gene_kspace = Fourier(gene_output)
     feature_kspace = Fourier(features)
     # tf.Session().run(tf.cast(tf.abs(tf.square(tmp1 - tmp2)),tf.float32)*tf.cast(tf.greater(tf.abs(tmp2),0),tf.float32))
     loss_kspace = tf.cast(tf.abs(tf.square(gene_kspace - feature_kspace)),tf.float32)*tf.cast(tf.greater(tf.abs(feature_kspace),0),tf.float32)
@@ -521,3 +567,4 @@ def create_optimizers(gene_loss, gene_var_list,
     disc_minimize     = disc_opti.minimize(disc_loss, var_list=disc_var_list, name='disc_loss_minimize', global_step=global_step)
     
     return (global_step, learning_rate, gene_minimize, disc_minimize)
+
