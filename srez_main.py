@@ -26,6 +26,13 @@ tf.app.flags.DEFINE_integer('checkpoint_period', 10000,
 tf.app.flags.DEFINE_string('dataset', 'dataset',
                            "Path to the dataset directory.")
 
+tf.app.flags.DEFINE_string('dataset_output', 'dataset_output',
+                           "Path to the dataset directory.")
+
+tf.app.flags.DEFINE_string('dataset_input', 'dataset_input',
+                           "Path to the dataset directory.")
+
+
 tf.app.flags.DEFINE_float('epsilon', 1e-8,
                           "Fuzz term to avoid numerical instability")
 
@@ -47,7 +54,7 @@ tf.app.flags.DEFINE_integer('learning_rate_half_life', 5000,
 tf.app.flags.DEFINE_bool('log_device_placement', False,
                          "Log the device where variables are placed.")
 
-tf.app.flags.DEFINE_integer('sample_size', 64,
+tf.app.flags.DEFINE_integer('sample_size', 128,
                             "Image sample size in pixels. Range [64,128]")
 
 tf.app.flags.DEFINE_integer('summary_period', 200,
@@ -107,6 +114,19 @@ def prepare_dirs(delete_train_dir=False, shuffle_filename=True):
 
     return filenames
 
+def get_filenames(dir_file='', shuffle_filename=False):
+    try:
+        filenames = tf.gfile.ListDirectory(dir_file)
+    except:
+        print('cannot get files from {0}'.format(dir_file))
+
+    filenames = sorted(filenames)
+    if shuffle_filename:
+        random.shuffle(filenames)
+    filenames = [os.path.join(dir_file, f) for f in filenames if f.endswith('.jpg')]
+    return filenames
+
+
 
 def setup_tensorflow(gpu_memory_fraction=0.6):
     # Create session
@@ -163,20 +183,27 @@ def _train():
     sess, summary_writer = setup_tensorflow()
 
     # Prepare directories
-    all_filenames = prepare_dirs(delete_train_dir=True, shuffle_filename=False)
+    # all_filenames = 
+    prepare_dirs(delete_train_dir=True, shuffle_filename=False)
+    filenames_input = get_filenames(dir_file=FLAGS.dataset_input, shuffle_filename=False)
+    filenames_output = get_filenames(dir_file=FLAGS.dataset_output, shuffle_filename=False)
 
     # Separate training and test sets
-    train_filenames = all_filenames[:-FLAGS.test_vectors]
-    test_filenames  = all_filenames[-FLAGS.test_vectors:]
+    # train_filenames = all_filenames[:-FLAGS.test_vectors]
+    # test_filenames  = all_filenames[-FLAGS.test_vectors:]
+    train_filenames_input = filenames_input[:-FLAGS.test_vectors]
+    test_filenames_input  = filenames_input[-FLAGS.test_vectors:]
+    train_filenames_output = filenames_output[:-FLAGS.test_vectors]
+    test_filenames_output  = filenames_output[-FLAGS.test_vectors:]
 
     # TBD: Maybe download dataset here
 
     # Setup async input queues
-    train_features, train_labels = srez_input.setup_inputs(sess, train_filenames)
-    test_features,  test_labels  = srez_input.setup_inputs(sess, test_filenames)
+    train_features, train_labels = srez_input.setup_inputs_two_sources(sess, train_filenames_input, train_filenames_output)
+    test_features,  test_labels  = srez_input.setup_inputs_two_sources(sess, test_filenames_input, test_filenames_output)
 
     # Add some noise during training (think denoising autoencoders)
-    noise_level = .03
+    noise_level = .00
     noisy_train_features = train_features + \
                            tf.random_normal(train_features.get_shape(), stddev=noise_level)
 
