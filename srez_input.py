@@ -77,9 +77,13 @@ def setup_inputs_two_sources(sess, filenames_input, filenames_output, image_size
     image_input = tf.cast(image_input, tf.float32)/255.0
     image_output = tf.cast(image_output, tf.float32)/255.0
 
+    # take channel0 real part, channel1 imag part    
+    image_input = image_input[:,:,:2]
+    image_output = image_output[:,:,:2]
+
     # The feature is simply a Kx downscaled version
-    feature = tf.reshape(image_input, [image_size, image_size, 3])
-    label   = tf.reshape(image_output,       [image_size,   image_size,     3])
+    feature = tf.reshape(image_input, [image_size, image_size, 2])
+    label   = tf.reshape(image_output, [image_size,   image_size,     2])
 
     # Using asynchronous queues
     features, labels = tf.train.batch([feature, label],
