@@ -42,6 +42,9 @@ tf.app.flags.DEFINE_string('run', 'demo',
 tf.app.flags.DEFINE_float('gene_l1_factor', .90,
                           "Multiplier for generator L1 loss term")
 
+tf.app.flags.DEFINE_float('gene_complex_factor', .90,
+                          "Multiplier for generator complex value loss term")
+
 tf.app.flags.DEFINE_float('learning_beta1', 0.5,
                           "Beta1 parameter used for AdamOptimizer")
 
@@ -119,7 +122,7 @@ def get_filenames(dir_file='', shuffle_filename=False):
         filenames = tf.gfile.ListDirectory(dir_file)
     except:
         print('cannot get files from {0}'.format(dir_file))
-
+        return []
     filenames = sorted(filenames)
     if shuffle_filename:
         random.shuffle(filenames)
