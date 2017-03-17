@@ -513,7 +513,8 @@ def _downscale(images, K):
 def Fourier(x):
     print('using Fourier, get_shape():', x.get_shape())
     x = tf.cast(x, tf.complex64)
-    y = tf.fft2d(x)
+    y = tf.fft3d(x)
+    y = y[:,:,:,-1]
     return y
 
 def create_generator_loss(disc_output, gene_output, features):
@@ -529,13 +530,25 @@ def create_generator_loss(disc_output, gene_output, features):
     # fourier_transform
     gene_kspace = Fourier(gene_output)
     feature_kspace = Fourier(features)
+    
+    # mask to get affine projection error
+    threshold_zero = 1./255.
+    feature_mask = tf.greater(tf.abs(feature_kspace),threshold_zero)
+    print('mask shape , get_shape():', feature_mask.get_shape())
+    # feature_mask = feature_mask[:,:,:,-1]
+    print('mask shape , get_shape():', feature_mask.get_shape())
     # tf.Session().run(tf.cast(tf.abs(tf.square(tmp1 - tmp2)),tf.float32)*tf.cast(tf.greater(tf.abs(tmp2),0),tf.float32))
-    loss_kspace = tf.cast(tf.abs(tf.square(gene_kspace - feature_kspace)),tf.float32)*tf.cast(tf.greater(tf.abs(feature_kspace),0),tf.float32)
+    
+    loss_kspace = tf.cast(tf.abs(tf.square(gene_kspace - feature_kspace)),tf.float32)*tf.cast(feature_mask,tf.float32)
+    print('loss_kspace shape , get_shape():', loss_kspace.get_shape())
 
     gene_l1_loss  = tf.reduce_mean(loss_kspace, name='gene_fourier_loss')
+    gene_complex_loss = tf.reduce_mean(tf.square(gene_output[:,:,:,1:]), name='gene_complex_loss')
 
-    gene_loss     = tf.add((1.0 - FLAGS.gene_l1_factor) * gene_ce_loss,
-                           FLAGS.gene_l1_factor * gene_l1_loss, name='gene_loss')
+    gene_loss     = tf.add((1.0 - FLAGS.gene_complex_factor) * gene_ce_loss,
+                           FLAGS.gene_complex_factor * gene_l1_loss, name='gene_loss')
+    # gene_loss     = tf.add((1.0 - FLAGS.gene_complex_factor) * gene_loss,
+    #                        FLAGS.gene_complex_factor * gene_complex_loss, name='gene_loss')
     
     return gene_loss    
 
@@ -567,4 +580,5 @@ def create_optimizers(gene_loss, gene_var_list,
     disc_minimize     = disc_opti.minimize(disc_loss, var_list=disc_var_list, name='disc_loss_minimize', global_step=global_step)
     
     return (global_step, learning_rate, gene_minimize, disc_minimize)
+
 
