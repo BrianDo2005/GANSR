@@ -25,6 +25,8 @@ def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, 
     image = tf.concat(0, [image[i,:,:,:] for i in range(max_samples)])
     image = td.sess.run(image)
 
+    image = np.concatenate((image,np.zeros([image.shape[0],image.shape[1],1])),axis=2)
+    print('save to image,', image.shape)
     filename = 'batch%06d_%s.png' % (batch, suffix)
     filename = os.path.join(FLAGS.train_dir, filename)
     scipy.misc.toimage(image, cmin=0., cmax=1.).save(filename)
@@ -104,7 +106,8 @@ def train_model(train_data):
         if batch % FLAGS.summary_period == 0:
             # Show progress with test features
             feed_dict = {td.gene_minput: test_feature}
-            gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)
+            gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)  
+             
             _summarize_progress(td, test_feature, test_label, gene_output, batch, 'out')
             
         if batch % FLAGS.checkpoint_period == 0:
