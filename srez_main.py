@@ -45,6 +45,9 @@ tf.app.flags.DEFINE_float('gene_l1_factor', .90,
 tf.app.flags.DEFINE_float('gene_complex_factor', .90,
                           "Multiplier for generator complex value loss term")
 
+tf.app.flags.DEFINE_float('gene_mse_factor', .90,
+                          "Multiplier for generator complex value loss term")
+
 tf.app.flags.DEFINE_float('learning_beta1', 0.5,
                           "Beta1 parameter used for AdamOptimizer")
 
@@ -216,7 +219,7 @@ def _train():
      disc_real_output, disc_fake_output, disc_var_list] = \
             srez_model.create_model(sess, noisy_train_features, train_labels)
 
-    gene_loss = srez_model.create_generator_loss(disc_fake_output, gene_output, train_features)
+    gene_loss = srez_model.create_generator_loss(disc_fake_output, gene_output, train_features, train_labels)
     disc_real_loss, disc_fake_loss = \
                      srez_model.create_discriminator_loss(disc_real_output, disc_fake_output)
     disc_loss = tf.add(disc_real_loss, disc_fake_loss, name='disc_loss')
