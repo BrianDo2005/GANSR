@@ -458,11 +458,11 @@ def create_model(sess, features, labels):
     # TBD: Is there a better way to instance the generator?
     with tf.variable_scope('gene') as scope:
         gene_output, gene_var_list = \
-                    _generator_model_with_scale(sess, features, labels, channels)
+                    _generator_model_with_scale(sess, features, labels, 1)
 
         scope.reuse_variables()
 
-        gene_moutput, _ = _generator_model_with_scale(sess, gene_minput, labels, channels)
+        gene_moutput, _ = _generator_model_with_scale(sess, gene_minput, labels, 1)
     
     # Discriminator with real data
     disc_real_input = tf.identity(labels, name='disc_real_input')
@@ -510,14 +510,22 @@ def _downscale(images, K):
     
 #     return gene_loss
 
-def Fourier(x):
-    print('using Fourier, get_shape():', x.get_shape())
+def Fourier(x, separate_complex=True):    
     x = tf.cast(x, tf.complex64)
-    y = tf.fft3d(x)
-    y = y[:,:,:,-1]
-    return y
+    if separate_complex:
+        x_complex = x[:,:,:,0]+1j*x[:,:,:,1]
+    else:
+        x_complex = x
+    x_complex = tf.reshape(x_complex,x_complex.get_shape()[:3])
+    y_complex = tf.fft2d(x_complex)
+    print('using Fourier, input dim {0}, output dim {1}'.format(x.get_shape(), y_complex.get_shape()))
+    # x = tf.cast(x, tf.complex64)
+    # y = tf.fft3d(x)
+    # y = y[:,:,:,-1]
+    return y_complex
 
-def create_generator_loss(disc_output, gene_output, features):
+
+def create_generator_loss(disc_output, gene_output, features, labels):
     # I.e. did we fool the discriminator?
     cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(disc_output, tf.ones_like(disc_output))
     gene_ce_loss  = tf.reduce_mean(cross_entropy, name='gene_ce_loss')
@@ -528,27 +536,27 @@ def create_generator_loss(disc_output, gene_output, features):
     # downscaled = _downscale(gene_output, K)
 
     # fourier_transform
-    gene_kspace = Fourier(gene_output)
-    feature_kspace = Fourier(features)
+    gene_kspace = Fourier(gene_output, separate_complex=False)
+    feature_kspace = Fourier(features, separate_complex=True)
     
     # mask to get affine projection error
     threshold_zero = 1./255.
     feature_mask = tf.greater(tf.abs(feature_kspace),threshold_zero)
     print('mask shape , get_shape():', feature_mask.get_shape())
-    # feature_mask = feature_mask[:,:,:,-1]
-    print('mask shape , get_shape():', feature_mask.get_shape())
-    # tf.Session().run(tf.cast(tf.abs(tf.square(tmp1 - tmp2)),tf.float32)*tf.cast(tf.greater(tf.abs(tmp2),0),tf.float32))
-    
+
     loss_kspace = tf.cast(tf.abs(tf.square(gene_kspace - feature_kspace)),tf.float32)*tf.cast(feature_mask,tf.float32)
     print('loss_kspace shape , get_shape():', loss_kspace.get_shape())
 
-    gene_l1_loss  = tf.reduce_mean(loss_kspace, name='gene_fourier_loss')
-    gene_complex_loss = tf.reduce_mean(tf.square(gene_output[:,:,:,1:]), name='gene_complex_loss')
 
-    gene_loss     = tf.add((1.0 - FLAGS.gene_complex_factor) * gene_ce_loss,
-                           FLAGS.gene_complex_factor * gene_l1_loss, name='gene_loss')
-    # gene_loss     = tf.add((1.0 - FLAGS.gene_complex_factor) * gene_loss,
-    #                        FLAGS.gene_complex_factor * gene_complex_loss, name='gene_loss')
+    # compare with real output
+    print('real output , get_shape():', labels.get_shape())
+        
+    gene_l1_loss  = tf.reduce_mean(loss_kspace, name='gene_fourier_loss')
+    gene_mse_loss = tf.reduce_mean(tf.square(gene_output - labels), name='gene_mse_loss')
+    
+    gene_loss_l1     = tf.add((1.0 - FLAGS.gene_l1_factor) * gene_ce_loss,
+                           FLAGS.gene_l1_factor * gene_l1_loss, name='gene_loss_l1')
+    gene_loss     = tf.add(gene_loss_l1, FLAGS.gene_mse_factor * gene_mse_loss, name='gene_loss')
     
     return gene_loss    
 
