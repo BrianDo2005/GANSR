@@ -205,8 +205,8 @@ def _train():
     # TBD: Maybe download dataset here
 
     # Setup async input queues
-    train_features, train_labels = srez_input.setup_inputs_two_sources(sess, train_filenames_input, train_filenames_output)
-    test_features,  test_labels  = srez_input.setup_inputs_two_sources(sess, test_filenames_input, test_filenames_output)
+    train_features, train_labels = srez_input.setup_inputs_one_sources(sess, train_filenames_input, train_filenames_output)
+    test_features,  test_labels  = srez_input.setup_inputs_one_sources(sess, test_filenames_input, test_filenames_output)
 
     # Add some noise during training (think denoising autoencoders)
     noise_level = .00
