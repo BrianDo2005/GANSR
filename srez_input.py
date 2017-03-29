@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -98,6 +99,24 @@ def setup_inputs_two_sources(sess, filenames_input, filenames_output, image_size
       
     return features, labels
 
+def getMask(size=[128,128], porder = 1.2, bias = 0.1, seed = 0):
+    mask = np.zeros(size)
+    np.random.seed(seed)
+    for i in xrange(size[1]):
+        x = (i-size[1]/2)/(size[1]/2.0)
+        p = np.random.rand() 
+        if p <= abs(x)**porder + bias:
+            mask[:,i]=1
+    R_factor = len(mask.flatten())/sum(mask.flatten())
+    print('gen mask for R-factor={0:.4f}'.format(R_factor))
+
+    # use tf
+    return mask, R_factor
+
+DEFAULT_MASK, _ = getMask()
+DEFAULT_MAKS_TF = tf.cast(tf.constant(DEFAULT_MASK), tf.float32)
+DEFAULT_MAKS_TF_c = tf.cast(DEFAULT_MAKS_TF, tf.complex64)
+
 def setup_inputs_one_sources(sess, filenames_input, filenames_output, image_size=None, capacity_factor=3):
 
     if image_size is None:
@@ -115,11 +134,22 @@ def setup_inputs_one_sources(sess, filenames_input, filenames_output, image_size
     image_input = tf.cast(image_input, tf.float32)/255.0
 
     # take channel0 real part, channel1 imag part    
-    image_input = image_input[:,:,:2]
+    image_input = image_input[:,:,-1]
     image_output = image_input[:,:,-1]
 
+    # undersample here
+    kspace_input = tf.fft2d(tf.cast(image_input,tf.complex64))
+    kspace_zpad = kspace_input * DEFAULT_MAKS_TF_c
+    image_zpad = tf.ifft2d(kspace_zpad)
+    image_zpad_real = tf.real(image_zpad)
+    image_zpad_real.set_shape([None, None, 1])
+    image_zpad_imag = tf.imag(image_zpad)
+    image_zpad_imag.set_shape([None, None, 1])
+    image_zpad_concat = tf.concat(3, [image_zpad_real, image_zpad_imag])
+
+
     # The feature is simply a Kx downscaled version
-    feature = tf.reshape(image_input, [image_size, image_size, 2])
+    feature = tf.reshape(image_zpad_concat, [image_size, image_size, 2])
     label   = tf.reshape(image_output, [image_size,   image_size,     1])
 
     # Using asynchronous queues
