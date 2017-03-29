@@ -24,7 +24,7 @@ def setup_inputs(sess, filenames, image_size=None, capacity_factor=3):
 
     wiggle = 8
     off_x, off_y = 25-wiggle, 60-wiggle
-    crop_size = 128
+    crop_size = FLAGS.sample_size
     crop_size_plus = crop_size + 2*wiggle
     image = tf.image.crop_to_bounding_box(image, off_y, off_x, crop_size_plus, crop_size_plus)
     image = tf.random_crop(image, [crop_size, crop_size, 3])
@@ -113,7 +113,7 @@ def getMask(size=[128,128], porder = 1.2, bias = 0.1, seed = 0):
     # use tf
     return mask, R_factor
 
-DEFAULT_MASK, _ = getMask()
+DEFAULT_MASK, _ = getMask([FLAGS.sample_size,FLAGS.sample_size])
 DEFAULT_MAKS_TF = tf.cast(tf.constant(DEFAULT_MASK), tf.float32)
 DEFAULT_MAKS_TF_c = tf.cast(DEFAULT_MAKS_TF, tf.complex64)
 
@@ -134,18 +134,21 @@ def setup_inputs_one_sources(sess, filenames_input, filenames_output, image_size
     image_input = tf.cast(image_input, tf.float32)/255.0
 
     # take channel0 real part, channel1 imag part    
-    image_input = image_input[:,:,-1]
     image_output = image_input[:,:,-1]
+    image_input = image_input[:,:,-1]
+    
 
     # undersample here
     kspace_input = tf.fft2d(tf.cast(image_input,tf.complex64))
     kspace_zpad = kspace_input * DEFAULT_MAKS_TF_c
     image_zpad = tf.ifft2d(kspace_zpad)
     image_zpad_real = tf.real(image_zpad)
-    image_zpad_real.set_shape([None, None, 1])
+    image_zpad_real = tf.reshape(image_zpad_real, [image_size, image_size, 1])
+    # image_zpad_real.set_shape([image_size, image_size, 1])
     image_zpad_imag = tf.imag(image_zpad)
-    image_zpad_imag.set_shape([None, None, 1])
-    image_zpad_concat = tf.concat(3, [image_zpad_real, image_zpad_imag])
+    image_zpad_imag = tf.reshape(image_zpad_imag, [image_size, image_size, 1])    
+    # image_zpad_imag.set_shape([image_size, image_size, 1])
+    image_zpad_concat = tf.concat(2, [image_zpad_real, image_zpad_imag])
 
 
     # The feature is simply a Kx downscaled version
