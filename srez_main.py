@@ -1,3 +1,14 @@
+"""
+train on GAN-CS 
+example
+export CUDA_VISIBLE_DEVICES=1
+python srez_main.py --dataset_input /home/enhaog/GANCS/srez/dataset_MRI/phantom \
+                    --dataset_output  /home/enhaog/GANCS/srez/dataset_MRI/phantom \
+                    --run train \
+                    --gene_mse_factor 1.0
+
+
+"""
 import srez_demo
 import srez_input
 import srez_model
@@ -39,13 +50,10 @@ tf.app.flags.DEFINE_float('epsilon', 1e-8,
 tf.app.flags.DEFINE_string('run', 'demo',
                             "Which operation to run. [demo|train]")
 
-tf.app.flags.DEFINE_float('gene_l1_factor', .90,
+tf.app.flags.DEFINE_float('gene_l2_factor', .90,
                           "Multiplier for generator L1 loss term")
 
-tf.app.flags.DEFINE_float('gene_complex_factor', .90,
-                          "Multiplier for generator complex value loss term")
-
-tf.app.flags.DEFINE_float('gene_mse_factor', .90,
+tf.app.flags.DEFINE_float('gene_mse_factor', .001,
                           "Multiplier for generator complex value loss term")
 
 tf.app.flags.DEFINE_float('learning_beta1', 0.5,
