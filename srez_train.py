@@ -14,9 +14,14 @@ def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, 
     nearest = tf.image.resize_nearest_neighbor(feature, size)
     nearest = tf.maximum(tf.minimum(nearest, 1.0), 0.0)
 
-    bicubic = tf.image.resize_bicubic(feature, size)
+    # bicubic = tf.image.resize_bicubic(feature, size)
+    # bicubic = tf.maximum(tf.minimum(bicubic, 1.0), 0.0)
+    # grascale of nearest
+    bicubic = tf.sqrt(nearest[:,:,:,0]**2+nearest[:,:,:,1]**2)
     bicubic = tf.maximum(tf.minimum(bicubic, 1.0), 0.0)
-
+    bicubic = tf.reshape(bicubic, [FLAGS.batch_size,FLAGS.sample_size,FLAGS.sample_size,1])
+    bicubic = tf.concat(3, [bicubic, bicubic])
+    
     clipped = tf.maximum(tf.minimum(gene_output, 1.0), 0.0)
 
     # first 2 channel copy
@@ -31,7 +36,7 @@ def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, 
     print('save to image,', type(image))
     print('save to image,', image.shape)
 
-    mag = np.sqrt(image[:,:,0]**2+image[:,:,1]**2)
+    mag = np.maximum(image[:,:,0],image[:,:,1])
     image = np.concatenate((image,mag[:,:,np.newaxis]),axis=2)
 
     print('save to image,', image.shape)
@@ -91,10 +96,11 @@ def train_model(train_data):
         gene_loss = disc_real_loss = disc_fake_loss = -1.234
 
         feed_dict = {td.learning_rate : lrval}
-
+        
+        # for training
         ops = [td.gene_minimize, td.disc_minimize, td.gene_loss, td.disc_real_loss, td.disc_fake_loss]
         _, _, gene_loss, disc_real_loss, disc_fake_loss = td.sess.run(ops, feed_dict=feed_dict)
-        
+    
         if batch % 10 == 0:
             # Show we are alive
             elapsed = int(time.time() - start_time)/60
@@ -111,11 +117,18 @@ def train_model(train_data):
             if batch % FLAGS.learning_rate_half_life == 0:
                 lrval *= .5
 
+        # # Show progress with train features
+        # feed_dict = {td.gene_minput: test_feature}
+        # gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)       
+        # _summarize_progress(td, test_feature, test_label, gene_output, batch, 'train')
+
+        # no propogation for testing batch
         if batch % FLAGS.summary_period == 0:
             # Show progress with test features
             feed_dict = {td.gene_minput: test_feature}
             gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)       
-            _summarize_progress(td, test_feature, test_label, gene_output, batch, 'out')
+            _summarize_progress(td, test_feature, test_label, gene_output, batch, 'test')
+        
             
         if batch % FLAGS.checkpoint_period == 0:
             # Save checkpoint
