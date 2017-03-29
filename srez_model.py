@@ -324,7 +324,7 @@ class Model:
 def _discriminator_model(sess, features, disc_input):
     # Fully convolutional model
     mapsize = 3
-    layers  = [64, 128, 256, 512]
+    layers  = [8, 16, 32, 64]#[64, 128, 256, 512]
 
     old_vars = tf.global_variables()#tf.all_variables() , all_variables() are deprecated
 
@@ -405,7 +405,7 @@ def _generator_model_with_scale(sess, features, labels, channels):
     # Upside-down all-convolutional resnet
 
     mapsize = 3
-    res_units  = [256, 128, 96]
+    res_units  = [32, 16, 8]#[256, 128, 96]
     scale_changes = [0,0,0,0,0,0]
 
     old_vars = tf.global_variables()#tf.all_variables() , all_variables() are deprecated
@@ -551,12 +551,13 @@ def create_generator_loss(disc_output, gene_output, features, labels):
     # compare with real output
     print('real output , get_shape():', labels.get_shape())
         
-    gene_l1_loss  = tf.reduce_mean(loss_kspace, name='gene_fourier_loss')
+    gene_l2_loss  = tf.reduce_mean(loss_kspace, name='gene_fourier_loss')
     gene_mse_loss = tf.reduce_mean(tf.square(gene_output - labels), name='gene_mse_loss')
     
-    gene_loss_l1     = tf.add((1.0 - FLAGS.gene_l1_factor) * gene_ce_loss,
-                           FLAGS.gene_l1_factor * gene_l1_loss, name='gene_loss_l1')
-    gene_loss     = tf.add(gene_loss_l1, FLAGS.gene_mse_factor * gene_mse_loss, name='gene_loss')
+    gene_loss_l2     = tf.add((1.0 - FLAGS.gene_l2_factor) * gene_ce_loss,
+                           FLAGS.gene_l2_factor * gene_l2_loss, name='gene_loss_l2')
+    gene_loss     = tf.add((1.0 - FLAGS.gene_mse_factor) * gene_loss_l2, 
+                            FLAGS.gene_mse_factor * gene_mse_loss, name='gene_loss')
     
     return gene_loss    
 
