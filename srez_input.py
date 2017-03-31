@@ -99,21 +99,26 @@ def setup_inputs_two_sources(sess, filenames_input, filenames_output, image_size
       
     return features, labels
 
-def getMask(size=[128,128], porder = 1.2, bias = 0.1, seed = 0):
+# R=2, porder=1.2, bias=0.1
+# R=5, sample=256, porder=5.0, bias=0.1
+def getMask(size=[128,128], porder = 5.0, bias = 0.1, seed = 0, axis_undersample=1):
     mask = np.zeros(size)
     np.random.seed(seed)
-    for i in xrange(size[1]):
+    for i in range(size[1]):
         x = (i-size[1]/2)/(size[1]/2.0)
         p = np.random.rand() 
         if p <= abs(x)**porder + bias:
-            mask[:,i]=1
+            if axis_undersample == 0:
+                mask[i,:]=1
+            else:
+                mask[:,i]=1
     R_factor = len(mask.flatten())/sum(mask.flatten())
     print('gen mask for R-factor={0:.4f}'.format(R_factor))
 
     # use tf
     return mask, R_factor
 
-DEFAULT_MASK, _ = getMask([FLAGS.sample_size,FLAGS.sample_size])
+DEFAULT_MASK, _ = getMask([FLAGS.sample_size,FLAGS.sample_size], axis_undersample=FLAGS.axis_undersample)
 DEFAULT_MAKS_TF = tf.cast(tf.constant(DEFAULT_MASK), tf.float32)
 DEFAULT_MAKS_TF_c = tf.cast(DEFAULT_MAKS_TF, tf.complex64)
 
