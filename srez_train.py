@@ -5,6 +5,7 @@ import tensorflow as tf
 import time
 
 FLAGS = tf.app.flags.FLAGS
+OUTPUT_TRAIN_SAMPLES = -1
 
 def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, max_samples=8):
     td = train_data
@@ -20,18 +21,18 @@ def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, 
     bicubic = tf.sqrt(nearest[:,:,:,0]**2+nearest[:,:,:,1]**2)
     bicubic = tf.maximum(tf.minimum(bicubic, 1.0), 0.0)
     bicubic = tf.reshape(bicubic, [FLAGS.batch_size,FLAGS.sample_size,FLAGS.sample_size,1])
-    bicubic = tf.concat(3, [bicubic, bicubic])
+    bicubic = tf.concat(axis=3, values=[bicubic, bicubic])
     
     clipped = tf.maximum(tf.minimum(gene_output, 1.0), 0.0)
 
     # first 2 channel copy
-    clipped = tf.concat(3, [clipped, clipped])
-    label = tf.concat(3, [label, label])
+    clipped = tf.concat(axis=3, values=[clipped, clipped])
+    label = tf.concat(axis=3, values=[label, label])
 
-    image   = tf.concat(2, [nearest, bicubic, clipped, label])
+    image   = tf.concat(axis=2, values=[nearest, bicubic, clipped, label])
 
     image = image[0:max_samples,:,:,:]
-    image = tf.concat(0, [image[i,:,:,:] for i in range(max_samples)])
+    image = tf.concat(axis=0, values=[image[i,:,:,:] for i in range(max_samples)])
     image = td.sess.run(image)
     print('save to image,', type(image))
     print('save to image,', image.shape)
@@ -77,9 +78,13 @@ def _save_checkpoint(train_data, batch):
 def train_model(train_data):
     td = train_data
 
-    summaries = tf.merge_all_summaries()
-    td.sess.run(tf.initialize_all_variables()) # will deprecated 2017-03-02
-    # TODO: change to tf.global_variables_initializer()
+    # update merge_all_summaries() to tf.summary.merge_all
+    summaries = tf.summary.merge_all()
+    # td.sess.run(tf.initialize_all_variables()) # will deprecated 2017-03-02
+    # DONE: change to tf.global_variables_initializer()
+    td.sess.run(tf.global_variables_initializer())
+
+    #TODO: load data
 
     lrval       = FLAGS.learning_rate_start
     start_time  = time.time()
@@ -89,6 +94,7 @@ def train_model(train_data):
     assert FLAGS.learning_rate_half_life % 10 == 0
 
     # Cache test features and labels (they are small)
+    train_feature, train_label = td.sess.run([td.train_features, td.train_labels])
     test_feature, test_label = td.sess.run([td.test_features, td.test_labels])
 
     while not done:
@@ -117,17 +123,19 @@ def train_model(train_data):
             if batch % FLAGS.learning_rate_half_life == 0:
                 lrval *= .5
 
-        # # Show progress with train features
-        # feed_dict = {td.gene_minput: test_feature}
-        # gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)       
-        # _summarize_progress(td, test_feature, test_label, gene_output, batch, 'train')
-
         # no propogation for testing batch
         if batch % FLAGS.summary_period == 0:
             # Show progress with test features
             feed_dict = {td.gene_minput: test_feature}
             gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)       
             _summarize_progress(td, test_feature, test_label, gene_output, batch, 'test')
+
+        # output all epoch results
+        if OUTPUT_TRAIN_SAMPLES>0:
+            feed_dict = {td.gene_minput: train_feature}
+            gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)       
+            _summarize_progress(td, train_feature, train_label, gene_output, batch%OUTPUT_TRAIN_SAMPLES, 'train')
+
         
             
         if batch % FLAGS.checkpoint_period == 0:
