@@ -7,6 +7,8 @@ python srez_main.py --dataset_input /home/enhaog/GANCS/srez/dataset_MRI/phantom 
                     --run train \
                     --gene_mse_factor 1.0
 
+python3 srez_main.py --dataset_input /home/enhaog/GANCS/srez/dataset_MRI/phantom --dataset_output  /home/enhaog/GANCS/srez/dataset_MRI/phantom  --batch_size 8 --run train --gene_mse_factor 0.1 --summary_period 125 --sample_size 256 --train_time 10                    
+
 
 """
 import srez_demo
@@ -37,7 +39,7 @@ tf.app.flags.DEFINE_integer('checkpoint_period', 10000,
 tf.app.flags.DEFINE_string('dataset', 'dataset',
                            "Path to the dataset directory.")
 
-tf.app.flags.DEFINE_string('dataset_output', 'dataset_output',
+tf.app.flags.DEFINE_string('dataset_output', '',
                            "Path to the dataset directory.")
 
 tf.app.flags.DEFINE_string('dataset_input', 'dataset_input',
@@ -51,10 +53,10 @@ tf.app.flags.DEFINE_string('run', 'demo',
                             "Which operation to run. [demo|train]")
 
 tf.app.flags.DEFINE_float('gene_l2_factor', .90,
-                          "Multiplier for generator L1 loss term")
+                          "Multiplier for generator L2 loss term for data consistency, weighting Data-Consistency with GD-loss for GAN-loss")
 
 tf.app.flags.DEFINE_float('gene_mse_factor', .001,
-                          "Multiplier for generator complex value loss term")
+                          "Multiplier for generator MSE loss for regression accuracy, weighting MSE VS GAN-loss")
 
 tf.app.flags.DEFINE_float('learning_beta1', 0.5,
                           "Beta1 parameter used for AdamOptimizer")
@@ -85,6 +87,9 @@ tf.app.flags.DEFINE_string('train_dir', 'train',
 
 tf.app.flags.DEFINE_integer('train_time', 20,
                             "Time in minutes to train the model")
+
+tf.app.flags.DEFINE_integer('axis_undersample', 1,
+                            "which axis to undersample")
 
 
 def mkdirp(path):
@@ -155,7 +160,9 @@ def setup_tensorflow(gpu_memory_fraction=0.6):
     random.seed(FLAGS.random_seed)
     np.random.seed(FLAGS.random_seed)
 
-    summary_writer = tf.train.SummaryWriter(FLAGS.train_dir, sess.graph)
+# SummaryWriter is deprecated
+# tf.summary.FileWriter.
+    summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
 
     return sess, summary_writer   
 
@@ -200,6 +207,9 @@ def _train():
     # all_filenames = 
     prepare_dirs(delete_train_dir=True, shuffle_filename=False)
     filenames_input = get_filenames(dir_file=FLAGS.dataset_input, shuffle_filename=False)
+    # if not specify use the same as input
+    if FLAGS.dataset_output == '':
+        FLAGS.dataset_output = FLAGS.dataset_input
     filenames_output = get_filenames(dir_file=FLAGS.dataset_output, shuffle_filename=False)
 
     # Separate training and test sets
@@ -213,8 +223,15 @@ def _train():
     # TBD: Maybe download dataset here
 
     # Setup async input queues
-    train_features, train_labels = srez_input.setup_inputs_one_sources(sess, train_filenames_input, train_filenames_output)
-    test_features,  test_labels  = srez_input.setup_inputs_one_sources(sess, test_filenames_input, test_filenames_output)
+    train_features, train_labels = srez_input.setup_inputs_one_sources(sess, train_filenames_input, train_filenames_output, 
+                                                                        image_size=FLAGS.sample_size, axis_undersample=FLAGS.axis_undersample)
+    test_features,  test_labels  = srez_input.setup_inputs_one_sources(sess, test_filenames_input, test_filenames_output,
+                                                                        image_size=FLAGS.sample_size, axis_undersample=FLAGS.axis_undersample)
+    
+    # sample size
+    num_sample_train = len(train_filenames_input)
+    num_sample_test = len(test_filenames_input)
+    print('train on {0} samples and test on {1} samples'.format(num_sample_train, num_sample_test))
 
     # Add some noise during training (think denoising autoencoders)
     noise_level = .00
