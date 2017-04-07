@@ -118,11 +118,11 @@ def getMask(size=[128,128], porder = 5.0, bias = 0.1, seed = 0, axis_undersample
     # use tf
     return mask, R_factor
 
-DEFAULT_MASK, _ = getMask([FLAGS.sample_size,FLAGS.sample_size], axis_undersample=FLAGS.axis_undersample)
-DEFAULT_MAKS_TF = tf.cast(tf.constant(DEFAULT_MASK), tf.float32)
-DEFAULT_MAKS_TF_c = tf.cast(DEFAULT_MAKS_TF, tf.complex64)
+def setup_inputs_one_sources(sess, filenames_input, filenames_output, image_size=None, axis_undersample=1, capacity_factor=3):
 
-def setup_inputs_one_sources(sess, filenames_input, filenames_output, image_size=None, capacity_factor=3):
+    DEFAULT_MASK, _ = getMask([image_size,image_size], axis_undersample=axis_undersample)
+    DEFAULT_MAKS_TF = tf.cast(tf.constant(DEFAULT_MASK), tf.float32)
+    DEFAULT_MAKS_TF_c = tf.cast(DEFAULT_MAKS_TF, tf.complex64)
 
     if image_size is None:
         image_size = FLAGS.sample_size
@@ -153,7 +153,7 @@ def setup_inputs_one_sources(sess, filenames_input, filenames_output, image_size
     image_zpad_imag = tf.imag(image_zpad)
     image_zpad_imag = tf.reshape(image_zpad_imag, [image_size, image_size, 1])    
     # image_zpad_imag.set_shape([image_size, image_size, 1])
-    image_zpad_concat = tf.concat(2, [image_zpad_real, image_zpad_imag])
+    image_zpad_concat = tf.concat(axis=2, values=[image_zpad_real, image_zpad_imag])
 
 
     # The feature is simply a Kx downscaled version
