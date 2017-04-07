@@ -428,6 +428,7 @@ def _generator_model_with_scale(sess, features, labels, channels):
         model.add_relu()
         model.add_conv2d_transpose(nunits, mapsize=mapsize, stride=1, stddev_factor=1.)
 
+
     # Finalization a la "all convolutional net"
     nunits = res_units[-1]
     model.add_conv2d(nunits, mapsize=mapsize, stride=1, stddev_factor=2.)
@@ -527,7 +528,7 @@ def Fourier(x, separate_complex=True):
 
 def create_generator_loss(disc_output, gene_output, features, labels):
     # I.e. did we fool the discriminator?
-    cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(disc_output, tf.ones_like(disc_output))
+    cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_output, labels=tf.ones_like(disc_output))
     gene_ce_loss  = tf.reduce_mean(cross_entropy, name='gene_ce_loss')
 
     # I.e. does the result look like the feature?
@@ -563,10 +564,10 @@ def create_generator_loss(disc_output, gene_output, features, labels):
 
 def create_discriminator_loss(disc_real_output, disc_fake_output):
     # I.e. did we correctly identify the input as real or not?
-    cross_entropy_real = tf.nn.sigmoid_cross_entropy_with_logits(disc_real_output, tf.ones_like(disc_real_output))
+    cross_entropy_real = tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_real_output, labels=tf.ones_like(disc_real_output))
     disc_real_loss     = tf.reduce_mean(cross_entropy_real, name='disc_real_loss')
     
-    cross_entropy_fake = tf.nn.sigmoid_cross_entropy_with_logits(disc_fake_output, tf.zeros_like(disc_fake_output))
+    cross_entropy_fake = tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_fake_output, labels=tf.zeros_like(disc_fake_output))
     disc_fake_loss     = tf.reduce_mean(cross_entropy_fake, name='disc_fake_loss')
 
     return disc_real_loss, disc_fake_loss
