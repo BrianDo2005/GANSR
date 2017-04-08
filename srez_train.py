@@ -5,7 +5,7 @@ import tensorflow as tf
 import time
 
 FLAGS = tf.app.flags.FLAGS
-OUTPUT_TRAIN_SAMPLES = -1
+OUTPUT_TRAIN_SAMPLES = 1
 
 def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, max_samples=8):
     td = train_data
@@ -75,7 +75,7 @@ def _save_checkpoint(train_data, batch):
 
     print("    Checkpoint saved")
 
-def train_model(train_data):
+def train_model(train_data, num_sample_train=984, num_sample_test=16):
     td = train_data
 
     # update merge_all_summaries() to tf.summary.merge_all
@@ -94,7 +94,6 @@ def train_model(train_data):
     assert FLAGS.learning_rate_half_life % 10 == 0
 
     # Cache test features and labels (they are small)
-    train_feature, train_label = td.sess.run([td.train_features, td.train_labels])
     test_feature, test_label = td.sess.run([td.test_features, td.test_labels])
 
     while not done:
@@ -104,8 +103,9 @@ def train_model(train_data):
         feed_dict = {td.learning_rate : lrval}
         
         # for training
-        ops = [td.gene_minimize, td.disc_minimize, td.gene_loss, td.disc_real_loss, td.disc_fake_loss]
-        _, _, gene_loss, disc_real_loss, disc_fake_loss = td.sess.run(ops, feed_dict=feed_dict)
+        ops = [td.gene_minimize, td.disc_minimize, td.gene_loss, td.disc_real_loss, td.disc_fake_loss, 
+               td.train_features, td.train_labels, td.gene_output]
+        _, _, gene_loss, disc_real_loss, disc_fake_loss, train_feature, train_label, train_output = td.sess.run(ops, feed_dict=feed_dict)
     
         if batch % 10 == 0:
             # Show we are alive
@@ -131,10 +131,11 @@ def train_model(train_data):
             _summarize_progress(td, test_feature, test_label, gene_output, batch, 'test')
 
         # output all epoch results
-        if OUTPUT_TRAIN_SAMPLES>0:
-            feed_dict = {td.gene_minput: train_feature}
-            gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)       
-            _summarize_progress(td, train_feature, train_label, gene_output, batch%OUTPUT_TRAIN_SAMPLES, 'train')
+        num_batch_train = num_sample_train / FLAGS.batch_size
+        num_batch_test = num_sample_test / FLAGS.batch_size
+        if OUTPUT_TRAIN_SAMPLES:
+            print('train sample size:',train_feature.shape, train_label.shape, train_output.shape)
+            _summarize_progress(td, train_feature, train_label, train_output, batch%num_batch_train, 'train')
 
         
             
