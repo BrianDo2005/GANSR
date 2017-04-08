@@ -158,7 +158,7 @@ def setup_inputs_one_sources(sess, filenames_input, filenames_output, image_size
 
     # The feature is simply a Kx downscaled version
     feature = tf.reshape(image_zpad_concat, [image_size, image_size, 2])
-    label   = tf.reshape(image_output, [image_size,   image_size,     1])
+    label   = tf.reshape(image_output, [image_size, image_size, 1])
 
     # Using asynchronous queues
     features, labels = tf.train.batch([feature, label],
