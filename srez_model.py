@@ -450,17 +450,18 @@ def _generator_encoder_decoder(sess, features, labels, channels):
     # old variables
     layers = []    
     old_vars = tf.global_variables()#tf.all_variables() , all_variables() are deprecated
+    # layers.append(features)
 
     # definition
     num_filter_generator = 8
-    layer_specs = [
+    layer_specs = [ 
         num_filter_generator * 2, # encoder_2: [batch, 128, 128, ngf] => [batch, 64, 64, ngf * 2]
         num_filter_generator * 4, # encoder_3: [batch, 64, 64, ngf * 2] => [batch, 32, 32, ngf * 4]
         num_filter_generator * 8, # encoder_4: [batch, 32, 32, ngf * 4] => [batch, 16, 16, ngf * 8]
-        num_filter_generator * 8, # encoder_5: [batch, 16, 16, ngf * 8] => [batch, 8, 8, ngf * 8]
-        num_filter_generator * 8, # encoder_6: [batch, 8, 8, ngf * 8] => [batch, 4, 4, ngf * 8]
-        num_filter_generator * 8, # encoder_7: [batch, 4, 4, ngf * 8] => [batch, 2, 2, ngf * 8]
-        num_filter_generator * 8, # encoder_8: [batch, 2, 2, ngf * 8] => [batch, 1, 1, ngf * 8]
+        # num_filter_generator * 8, # encoder_5: [batch, 16, 16, ngf * 8] => [batch, 8, 8, ngf * 8]
+        # num_filter_generator * 8, # encoder_6: [batch, 8, 8, ngf * 8] => [batch, 4, 4, ngf * 8]
+        # num_filter_generator * 8, # encoder_7: [batch, 4, 4, ngf * 8] => [batch, 2, 2, ngf * 8]
+        num_filter_generator * 16, # encoder_8: [batch, 2, 2, ngf * 8] => [batch, 1, 1, ngf * 8]
     ]
 
    # encoder_1: [batch, 256, 256, in_channels] => [batch, 128, 128, ngf]
@@ -468,7 +469,7 @@ def _generator_encoder_decoder(sess, features, labels, channels):
         output = conv(features, num_filter_generator, stride=2)
         layers.append(output)
 
-    for out_channels in layer_specs[:num_layer]:
+    for out_channels in layer_specs:
         with tf.variable_scope("encoder_%d" % (len(layers) + 1)):
             rectified = lrelu(layers[-1], 0.2)
             # [batch, in_height, in_width, in_channels] => [batch, in_height/2, in_width/2, out_channels]
@@ -477,9 +478,9 @@ def _generator_encoder_decoder(sess, features, labels, channels):
             layers.append(output)
 
     layer_specs = [
-        (num_filter_generator * 8, 0.5),   # decoder_8: [batch, 1, 1, ngf * 8] => [batch, 2, 2, ngf * 8 * 2]
-        (num_filter_generator * 8, 0.5),   # decoder_7: [batch, 2, 2, ngf * 8 * 2] => [batch, 4, 4, ngf * 8 * 2]
-        (num_filter_generator * 8, 0.5),   # decoder_6: [batch, 4, 4, ngf * 8 * 2] => [batch, 8, 8, ngf * 8 * 2]
+        # (num_filter_generator * 16, 0.5),   # decoder_8: [batch, 1, 1, ngf * 8] => [batch, 2, 2, ngf * 8 * 2]
+        # (num_filter_generator * 8, 0.5),   # decoder_7: [batch, 2, 2, ngf * 8 * 2] => [batch, 4, 4, ngf * 8 * 2]
+        # (num_filter_generator * 8, 0.5),   # decoder_6: [batch, 4, 4, ngf * 8 * 2] => [batch, 8, 8, ngf * 8 * 2]
         (num_filter_generator * 8, 0.0),   # decoder_5: [batch, 8, 8, ngf * 8 * 2] => [batch, 16, 16, ngf * 8 * 2]
         (num_filter_generator * 4, 0.0),   # decoder_4: [batch, 16, 16, ngf * 8 * 2] => [batch, 32, 32, ngf * 4 * 2]
         (num_filter_generator * 2, 0.0),   # decoder_3: [batch, 32, 32, ngf * 4 * 2] => [batch, 64, 64, ngf * 2 * 2]
@@ -508,6 +509,9 @@ def _generator_encoder_decoder(sess, features, labels, channels):
             layers.append(output)
 
     # decoder_1: [batch, 128, 128, ngf * 2] => [batch, 256, 256, generator_outputs_channels]
+    for x in layers:
+        print(x)
+
     with tf.variable_scope("decoder_1"):
         input = tf.concat([layers[-1], layers[0]], axis=3)
         rectified = tf.nn.relu(input)
@@ -520,7 +524,7 @@ def _generator_encoder_decoder(sess, features, labels, channels):
     new_vars  = tf.global_variables()#tf.all_variables() , all_variables() are deprecated
     gene_vars = list(set(new_vars) - set(old_vars))
 
-    return layers[-1], gene_vars
+    return layers[-1], gene_vars, layers
 
 
 def _generator_model_with_scale(sess, features, labels, channels):
@@ -580,13 +584,13 @@ def create_model(sess, features, labels):
 
     # TBD: Is there a better way to instance the generator?
     with tf.variable_scope('gene') as scope:
-        gene_output, gene_var_list = \
+        gene_output, gene_var_list, gene_layers = \
                       _generator_encoder_decoder(sess, features, labels, 1)
                     # _generator_model_with_scale(sess, features, labels, 1)
 
         scope.reuse_variables()
 
-        gene_moutput, _ = _generator_encoder_decoder(sess, gene_minput, labels, 1)
+        gene_moutput, _ , gene_mlayers= _generator_encoder_decoder(sess, gene_minput, labels, 1)
                     # _generator_model_with_scale(sess, gene_minput, labels, 1)
     
     # Discriminator with real data
@@ -603,7 +607,8 @@ def create_model(sess, features, labels):
 
     return [gene_minput,      gene_moutput,
             gene_output,      gene_var_list,
-            disc_real_output, disc_fake_output, disc_var_list]
+            disc_real_output, disc_fake_output, disc_var_list,
+            gene_layers]
 
 def _downscale(images, K):
     """Differentiable image downscaling by a factor of K"""
