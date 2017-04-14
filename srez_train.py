@@ -70,7 +70,7 @@ def _save_checkpoint(train_data, batch):
         pass
 
     # Generate new checkpoint
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(sharded=True)
     saver.save(td.sess, newname)
 
     print("    Checkpoint saved")
@@ -104,8 +104,10 @@ def train_model(train_data, num_sample_train=984, num_sample_test=16):
         
         # for training
         ops = [td.gene_minimize, td.disc_minimize, td.gene_loss, td.disc_real_loss, td.disc_fake_loss, 
-               td.train_features, td.train_labels, td.gene_output]
-        _, _, gene_loss, disc_real_loss, disc_fake_loss, train_feature, train_label, train_output = td.sess.run(ops, feed_dict=feed_dict)
+               td.train_features, td.train_labels, td.gene_output, td.gene_var_list, td.gene_layers]
+        _, _, gene_loss, disc_real_loss, disc_fake_loss, train_feature, train_label, train_output, train_vars, train_layers = td.sess.run(ops, feed_dict=feed_dict)
+        print([x.shape for x in train_vars])
+        print([x.shape for x in train_layers])
     
         if batch % 10 == 0:
             # Show we are alive
