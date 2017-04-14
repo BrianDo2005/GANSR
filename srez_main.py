@@ -242,7 +242,7 @@ def _train():
     [gene_minput, gene_moutput,
      gene_output, gene_var_list,
      disc_real_output, disc_fake_output, disc_var_list,
-     gene_layers ] = \
+     gene_layers, gene_mlayers] = \
             srez_model.create_model(sess, noisy_train_features, train_labels)
 
     gene_loss = srez_model.create_generator_loss(disc_fake_output, gene_output, train_features, train_labels)
