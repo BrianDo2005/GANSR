@@ -3,11 +3,13 @@ import os.path
 import scipy.misc
 import tensorflow as tf
 import time
+import json
+from scipy.io import savemat
 
 FLAGS = tf.app.flags.FLAGS
 OUTPUT_TRAIN_SAMPLES = 1
 
-def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, max_samples=8):
+def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, max_samples=8, gene_param=None):
     td = train_data
 
     size = [label.shape[1], label.shape[2]]
@@ -45,6 +47,13 @@ def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, 
     filename = os.path.join(FLAGS.train_dir, filename)
     scipy.misc.toimage(image, cmin=0., cmax=1.).save(filename)
     print("    Saved %s" % (filename,))
+
+    # save layers and var_list
+    if gene_param is not None:
+        filename = 'batch%06d_%s.mat' % (batch, suffix)
+        filename = os.path.join(FLAGS.train_dir, filename)
+        savemat(filename, gene_param)
+        print("    Saved %s" % (filename,))
 
 def _save_checkpoint(train_data, batch):
     td = train_data
@@ -129,8 +138,10 @@ def train_model(train_data, num_sample_train=984, num_sample_test=16):
         if batch % FLAGS.summary_period == 0:
             # Show progress with test features
             feed_dict = {td.gene_minput: test_feature}
-            gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)       
-            _summarize_progress(td, test_feature, test_label, gene_output, batch, 'test')
+            ops = [td.gene_moutput, td.gene_mlayers, td.gene_var_list]
+            gene_output, gene_layers, gene_var_list= td.sess.run(ops, feed_dict=feed_dict)       
+            _summarize_progress(td, test_feature, test_label, gene_output, batch, 'test', 
+                                gene_param={'gene_layers':,gene_layers, 'gene_var_list':gene_var_list})
 
         # output all epoch results
         num_batch_train = num_sample_train / FLAGS.batch_size
