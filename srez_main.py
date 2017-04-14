@@ -7,7 +7,7 @@ python srez_main.py --dataset_input /home/enhaog/GANCS/srez/dataset_MRI/phantom 
                     --run train \
                     --gene_mse_factor 1.0
 
-python3 srez_main.py --dataset_input /home/enhaog/GANCS/srez/dataset_MRI/phantom --dataset_output  /home/enhaog/GANCS/srez/dataset_MRI/phantom  --batch_size 8 --run train --gene_mse_factor 0.1 --summary_period 125 --sample_size 256 --train_time 10                    
+python3 srez_main.py --dataset_input /home/enhaog/GANCS/srez/dataset_MRI/phantom --batch_size 8 --run train --summary_period 125 --sample_size 256 --train_time 10                    
 
 
 """
@@ -33,7 +33,7 @@ tf.app.flags.DEFINE_integer('batch_size', 16,
 tf.app.flags.DEFINE_string('checkpoint_dir', 'checkpoint',
                            "Output folder where checkpoints are dumped.")
 
-tf.app.flags.DEFINE_integer('checkpoint_period', 1000,
+tf.app.flags.DEFINE_integer('checkpoint_period', 100,
                             "Number of batches in between checkpoints")
 
 tf.app.flags.DEFINE_string('dataset', 'dataset',
@@ -241,7 +241,8 @@ def _train():
     # Create and initialize model
     [gene_minput, gene_moutput,
      gene_output, gene_var_list,
-     disc_real_output, disc_fake_output, disc_var_list] = \
+     disc_real_output, disc_fake_output, disc_var_list,
+     gene_layers ] = \
             srez_model.create_model(sess, noisy_train_features, train_labels)
 
     gene_loss = srez_model.create_generator_loss(disc_fake_output, gene_output, train_features, train_labels)
