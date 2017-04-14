@@ -590,6 +590,7 @@ def create_model(sess, features, labels):
 
         scope.reuse_variables()
 
+        # for testing input
         gene_moutput, _ , gene_mlayers= _generator_encoder_decoder(sess, gene_minput, labels, 1)
                     # _generator_model_with_scale(sess, gene_minput, labels, 1)
     
@@ -608,7 +609,7 @@ def create_model(sess, features, labels):
     return [gene_minput,      gene_moutput,
             gene_output,      gene_var_list,
             disc_real_output, disc_fake_output, disc_var_list,
-            gene_layers]
+            gene_layers, gene_mlayers]
 
 def _downscale(images, K):
     """Differentiable image downscaling by a factor of K"""
