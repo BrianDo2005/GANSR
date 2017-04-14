@@ -33,7 +33,7 @@ tf.app.flags.DEFINE_integer('batch_size', 16,
 tf.app.flags.DEFINE_string('checkpoint_dir', 'checkpoint',
                            "Output folder where checkpoints are dumped.")
 
-tf.app.flags.DEFINE_integer('checkpoint_period', 100,
+tf.app.flags.DEFINE_integer('checkpoint_period', 1000,
                             "Number of batches in between checkpoints")
 
 tf.app.flags.DEFINE_string('dataset', 'dataset',
