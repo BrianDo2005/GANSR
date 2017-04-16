@@ -401,7 +401,7 @@ def _discriminator_model(sess, features, disc_input):
 
 #     return model.get_output(), gene_vars
 
-def conv(batch_input, out_channels, stride=2, size_kernel=3):
+def conv(batch_input, out_channels, stride=2, size_kernel=4):
     with tf.variable_scope("conv"):
         in_channels = batch_input.get_shape()[3]
         filter = tf.get_variable("filter", [size_kernel, size_kernel, in_channels, out_channels], dtype=tf.float32, initializer=tf.random_normal_initializer(0, 0.02))
@@ -411,7 +411,7 @@ def conv(batch_input, out_channels, stride=2, size_kernel=3):
         conv = tf.nn.conv2d(padded_input, filter, [1, stride, stride, 1], padding="VALID")
         return conv
 
-def deconv(batch_input, out_channels, size_kernel=3):
+def deconv(batch_input, out_channels, size_kernel=4):
     with tf.variable_scope("deconv"):
         batch, in_height, in_width, in_channels = [int(d) for d in batch_input.get_shape()]
         filter = tf.get_variable("filter", [size_kernel, size_kernel, out_channels, in_channels], dtype=tf.float32, initializer=tf.random_normal_initializer(0, 0.02))
@@ -572,9 +572,13 @@ def _generator_model_with_scale(sess, features, labels, channels):
     new_vars  = tf.global_variables()#tf.all_variables() , all_variables() are deprecated
     gene_vars = list(set(new_vars) - set(old_vars))
 
-    return model.get_output(), gene_vars
+    return model.get_output(), gene_vars, model.outputs
 
-def create_model(sess, features, labels):
+def create_model(sess, features, labels, architecture='resnet'):
+    # sess: TF sesson
+    # features: input, for SR/CS it is the input image
+    # labels: output, for SR/CS it is the groundtruth image
+    # architecture: aec for encode-decoder, resnet for upside down 
     # Generator
     rows      = int(features.get_shape()[1])
     cols      = int(features.get_shape()[2])
@@ -583,15 +587,18 @@ def create_model(sess, features, labels):
     gene_minput = tf.placeholder(tf.float32, shape=[FLAGS.batch_size, rows, cols, channels])
 
     # TBD: Is there a better way to instance the generator?
+    if architecture == 'aec':
+        function_generator = lambda x,y,z,w: _generator_encoder_decoder(x,y,z,w)
+    else:
+        function_generator = lambda x,y,z,w: _generator_model_with_scale(x,y,z,w)
     with tf.variable_scope('gene') as scope:
-        gene_output, gene_var_list, gene_layers = \
-                      _generator_encoder_decoder(sess, features, labels, 1)
+        gene_output, gene_var_list, gene_layers = function_generator(sess, features, labels, 1)
                     # _generator_model_with_scale(sess, features, labels, 1)
 
         scope.reuse_variables()
 
         # for testing input
-        gene_moutput, _ , gene_mlayers= _generator_encoder_decoder(sess, gene_minput, labels, 1)
+        gene_moutput, _ , gene_mlayers= function_generator(sess, gene_minput, labels, 1)
                     # _generator_model_with_scale(sess, gene_minput, labels, 1)
     
     # Discriminator with real data
