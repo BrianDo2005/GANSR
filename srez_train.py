@@ -142,7 +142,8 @@ def train_model(train_data, num_sample_train=984, num_sample_test=16):
             ops = [td.gene_moutput, td.gene_mlayers, td.gene_var_list]
             gene_output, gene_layers, gene_var_list= td.sess.run(ops, feed_dict=feed_dict)       
             _summarize_progress(td, test_feature, test_label, gene_output, batch, 'test', 
-                                gene_param={'gene_layers':gene_layers, 'gene_var_list':gene_var_list})
+                                gene_param={'gene_layers':[x.tolist() for x in gene_layers], 
+                                            'gene_var_list':[x.tolist() for x in gene_var_list]})
 
         # output all epoch results
         num_batch_train = num_sample_train / FLAGS.batch_size
