@@ -112,12 +112,11 @@ def train_model(train_data, num_sample_train=984, num_sample_test=16):
 
         feed_dict = {td.learning_rate : lrval}
         
-        # for training
+        # for training 
+        # don't export var and layers for train to reduce size
         ops = [td.gene_minimize, td.disc_minimize, td.gene_loss, td.disc_real_loss, td.disc_fake_loss, 
-               td.train_features, td.train_labels, td.gene_output, td.gene_var_list, td.gene_layers]
-        _, _, gene_loss, disc_real_loss, disc_fake_loss, train_feature, train_label, train_output, train_vars, train_layers = td.sess.run(ops, feed_dict=feed_dict)
-        print([x.shape for x in train_vars])
-        print([x.shape for x in train_layers])
+               td.train_features, td.train_labels, td.gene_output]#, td.gene_var_list, td.gene_layers]
+        _, _, gene_loss, disc_real_loss, disc_fake_loss, train_feature, train_label, train_output = td.sess.run(ops, feed_dict=feed_dict)
     
         if batch % 10 == 0:
             # Show we are alive
@@ -141,6 +140,8 @@ def train_model(train_data, num_sample_train=984, num_sample_test=16):
             feed_dict = {td.gene_minput: test_feature}
             ops = [td.gene_moutput, td.gene_mlayers, td.gene_var_list]
             gene_output, gene_layers, gene_var_list= td.sess.run(ops, feed_dict=feed_dict)       
+            print([x.shape for x in gene_var_list])
+            print([x.shape for x in gene_layers])
             _summarize_progress(td, test_feature, test_label, gene_output, batch, 'test', 
                                 gene_param={'gene_layers':[x.tolist() for x in gene_layers], 
                                             'gene_var_list':[x.tolist() for x in gene_var_list]})
